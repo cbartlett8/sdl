@@ -1,0 +1,52 @@
+# this is the gpl gitignore (started with github.cpp c++ gitignore)
+
+# ignore the tests and results directories
+# use a different directory name if you have tests you want to include in git
+#   for example:  my_tests
+tests/
+results/
+
+# ignore .tar files
+*.tar
+
+# ignore the gpl executable
+gpl
+
+# flex/bison generated files
+y.output
+y.tab.h
+y.tab.c
+lex.yy.c
+
+# Makefile dependency files
+*.d
+
+# the rest is from the github.com C++ gitignore
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
