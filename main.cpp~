@@ -8,8 +8,6 @@ class mario
     int a;
 };
 
-mario marios[50];
-
 int main()
 {
   SDL_Surface *screen;
