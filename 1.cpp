@@ -76,8 +76,10 @@ void draw_marios()
 
 int main()
 {
+  SDL_Surface *temp;
   SDL_Surface *background;
   SDL_Rect src, dest;
+  SDL_Event event;
   int frames;
   
   // Init the SDL video system
@@ -91,7 +93,7 @@ int main()
   atexit(SDL_Quit);
   
   // Attempting to set screen up
-  screen = SDL_SetVideoMode(640,480, 16, SDL_NOFRAME);
+  screen = SDL_SetVideoMode(640,480, 16, SDL_DOUBLEBUF);
   if (screen == NULL)
   {
     printf("SDL could not set video mode.\n");
@@ -99,24 +101,43 @@ int main()
   } 
   
   // load the bitmap files
-  background = SDL_LoadBMP("background.bmp");
-  if (background == NULL)
+  temp = SDL_LoadBMP("background.bmp");
+  if (temp != NULL)
   {
-    printf("background failed to load.\n");
+    background = SDL_DisplayFormat(temp);
+    if (background == NULL)
+    {
+      printf("background failed to load.\n");
+      return 1;
+    }
+  }
+  else
+  {
+    printf("ERROR: Could not load: background.bmp");
     return 1;
   }
+  SDL_FreeSurface(temp);
   
-  mario = SDL_LoadBMP("ttt.bmp");
-  if (mario == NULL)
+  temp = SDL_LoadBMP("ttt.bmp");
+  if (temp != NULL)
   {
-    printf("Failed to load ttt.bmp");
-    return 1;
+    mario = SDL_DisplayFormat(temp);
+    if   (mario == NULL)
+    {
+      printf("Failed to load ttt.bmp");
+      return 1;
+    }
   }
+  else
+  {
+    printf("ERROR: Could not load: ttt.bmp");
+  }
+  SDL_FreeSurface(temp);
   
   // init the mario
   init_marios();
   
-  // animate 300 frames
+  /* animate 300 frames
   for (frames = 0; frames < 300; frames++)
   {
     // draw the background
@@ -132,10 +153,70 @@ int main()
     draw_marios();
     
     // ask sdl to update the screen.
-    SDL_UpdateRect(screen, 0,0,0,0);
+    SDL_Flip(screen);
     
     // preform the movements
     move_marios();
+  }
+  */
+  
+  // update the events action.
+  while (SDL_WaitEvent(&event) != 0)
+  {
+    SDL_keysym keysym;
+    switch(event.type)
+    {
+      case SDL_KEYDOWN:
+        printf("Key Pressed: ");
+        keysym = event.key.keysym;
+        printf("SDL keysym is %i. ", keysym.sym);
+        printf("(%s) ", SDL_GetKeyName(keysym.sym));
+        
+        // report a left shift modifier
+        if (event.key.keysym.mod & KMOD_LSHIFT)
+          printf("Left SHIFT is DOWN.\n");
+        else
+          printf("Left SHIFT is UP.\n");
+          
+        // Did the user press  q?
+        if (keysym.sym == SDLK_q)
+        {
+          printf("'Q' pressed, exiting!\n");
+          exit(0);
+        } 
+        
+        break;
+        
+      case SDL_KEYUP:
+        printf("Key released. ");
+        printf("SDL keysym is %i. ", keysym.sym);
+        printf("(%s) ", SDL_GetKeyName(keysym.sym));
+        
+        if (event.key.keysym.mod & KMOD_SHIFT)
+          printf("Left Shift is down.\n");
+        else 
+          printf("Left Shift is UP.\n");
+        break;
+      
+      case SDL_MOUSEMOTION:
+        printf("Mouse Motion. ");
+      
+        // SDL Provides the current position.
+        printf("New Position is (%i, %i).", event.motion.x, event.motion.y);
+      
+        printf("A change of (%i, %i).\n", event.motion.xrel, event.motion.yrel);
+        break;
+      
+      case SDL_MOUSEBUTTONDOWN:
+        printf("Mouse button pusheddown");
+        printf("Button %i at (%i, %i)\n", 
+        event.button.button, event.button.x, event.button.y);
+        break;
+      
+      case SDL_QUIT:
+        printf("Quit event. Bye!\n");
+        exit(0);
+    }
   }
   
   // Free up the memory we allocated.
