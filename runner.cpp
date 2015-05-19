@@ -178,11 +178,13 @@ SDL_Surface *mario;
 SDL_Surface *mario2;
 SDL_Surface *screen;
 SDL_Surface *temp;
+SDL_Surface *bullet;
 SDL_Rect src, dest;
 SDL_Event event;
 int quit_flag = 0;
 // our loaded sounds and their formats
 sound_t cannon, explosion;
+
 
 enum Character_State
 {
@@ -191,6 +193,26 @@ enum Character_State
   SHOOTING = 3,
   HIT = 4
 }; 
+
+class Bullet
+{
+  public:
+  int m_x;
+  int m_y;
+  int m_w;
+  int m_h;
+  int m_current_x;
+  int m_current_y;
+  Bullet(int x, int y, int w, int h, int cur_x, int cur_y)
+  {
+    m_x = x;
+    m_y = y;
+    m_w = w;
+    m_h = h;
+    m_current_x = cur_x;
+    m_current_y = cur_y;
+  }
+};
 
 class Actor
 {
@@ -205,8 +227,11 @@ class Actor
     int m_hp;
     int m_score;
     Character_State m_state;
+    int m_state_flag;
+    int m_current_x;
+    int m_current_y;
     
-    Actor(int x, int y, int w, int h, int frame, int max_frame, std::string sound, int hp, int score, Character_State state)
+    Actor(int x, int y, int w, int h, int frame, int max_frame, std::string sound, int hp, int score, Character_State state, int flag, int current_x, int current_y)
     {
       m_x = x;
       m_y = y;
@@ -218,11 +243,15 @@ class Actor
       m_hp = hp;
       m_score = score;
       m_state = state;
+      m_state_flag = flag;
+      m_current_x = current_x;
+      m_current_y = current_y;
     }
 };
 
 std::string set = "Hello";
-Actor m_char(0, 0, 32, 32, 0, 1, set, 30, 100, RUNNING);
+Actor m_char(0, 0, 32, 32, 0, 1, set, 30, 100, RUNNING, 0, 0, 100);
+Bullet m_bullet(0,0,5,5,0,0);
 
 void init_img()
 {
@@ -237,6 +266,56 @@ void init_img()
   
   // Draw the main character
   printf("The current_frame: %i\n", m_char.m_current_frame);
+  // calculate the movement
+  if (m_char.m_state == JUMPING)
+  {
+    if (m_char.m_current_y > 0 && m_char.m_state_flag == 0)
+    {
+      m_char.m_current_y -= 1;
+    }
+    if (m_char.m_current_y < 5)
+    {
+      m_char.m_state_flag = 1;
+    }
+    if (m_char.m_state_flag == 1)
+    {
+      m_char.m_current_y += 1;
+    }
+    if (m_char.m_current_y >= 100 && m_char.m_state_flag == 1)
+    {
+      m_char.m_state = RUNNING;
+      m_char.m_state_flag = 0;
+    }
+  }
+  
+  // check if the character fired a bullet.
+  if (m_char.m_state == SHOOTING)
+  {
+    // Play the animation of the character shooting the bullet.
+    // Spawn the bullet
+    src.x = m_bullet.m_x;
+    src.y = m_bullet.m_y;
+    src.w = m_bullet.m_w;
+    src.h = m_bullet.m_h;
+    dest.y = m_bullet.m_current_y;
+    dest.w = m_bullet.m_w;
+    dest.h = m_bullet.m_h;
+    // move the bullet
+    if (m_bullet.m_current_x < screen->w)
+    {
+      m_bullet.m_current_x += 1;
+      dest.x = m_bullet.m_current_x;
+      SDL_BlitSurface(bullet, &src, screen, &dest);
+      printf("Shooting bullets.\n");
+    }
+    else
+    {
+      // despawn the bullet when it gets off screen.
+      m_bullet.m_current_y = -10;
+      m_bullet.m_current_x = -10;
+      m_char.m_state = RUNNING;
+    }
+  }
   // check the frame.
   if (m_char.m_current_frame == 0)
   {
@@ -244,8 +323,8 @@ void init_img()
     src.y = m_char.m_y;
     src.w = mario->w;
     src.h = mario->h;
-    dest.x = 0;
-    dest.y = 100;
+    dest.x = m_char.m_current_x;
+    dest.y = m_char.m_current_y;
     dest.w = mario->w;
     dest.h = mario->h;
     
@@ -258,8 +337,8 @@ void init_img()
     src.y = m_char.m_y;
     src.w = mario2->w;
     src.h = mario2->h;
-    dest.x = 0;
-    dest.y = 100;
+    dest.x = m_char.m_current_x;
+    dest.y = m_char.m_current_y;
     dest.w = mario2->w;
     dest.h = mario2->h;
     SDL_BlitSurface(mario2, &src, screen, &dest);
@@ -280,6 +359,14 @@ void CheckForInput()
     {
       case SDL_KEYDOWN:
         keysym = event.key.keysym;
+        
+        if (keysym.sym == SDLK_a)
+        {
+          printf("The 'a' key was pressed.\n");
+          m_char.m_state = SHOOTING;
+          m_bullet.m_current_x = m_char.m_current_x;
+          m_bullet.m_current_y = m_char.m_current_y;
+        }
         
         if (keysym.sym == SDLK_q)
         {
@@ -302,6 +389,7 @@ void CheckForInput()
         if (keysym.sym == SDLK_SPACE)
         {
           printf("'spacebar was pressed'\n"); 
+          m_char.m_state = JUMPING;
         }
         
         break;
@@ -426,6 +514,23 @@ int main()
   else
   {
     printf("ERROR: Could not load: ttu.bmp");
+  }
+  SDL_FreeSurface(temp);
+  
+  // Load me the bullet.
+  temp = SDL_LoadBMP("bullet.bmp");
+  if (temp != NULL)
+  {
+    bullet = SDL_DisplayFormat(temp);
+    if   (bullet == NULL)
+    {
+      printf("Failed to load bullet.bmp");
+      return 1;
+    }
+  }
+  else
+  {
+    printf("ERROR: Could not load: ttt.bmp");
   }
   SDL_FreeSurface(temp);
   
