@@ -495,10 +495,10 @@ int main()
   std::cout << "background: " << background << std::endl; 
   // load character 1
   mario = Init_image("ttt.bmp");
-  std::cout << "mario: " << mario << std::endl; 
+  std::cout << "ttt: " << mario << std::endl; 
   // Load me the character2.
   mario2 = Init_image("ttu.bmp");
-  std::cout << "mario2: " << mario2 << std::endl; 
+  std::cout << "ttu: " << mario2 << std::endl; 
   // Load me the bullet.
   bullet = Init_image("bullet.bmp");
   std::cout << "bullet: " << bullet << std::endl;
