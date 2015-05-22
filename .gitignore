@@ -5,6 +5,7 @@
 #   for example:  my_tests
 tests/
 results/
+image/
 
 # ignore .tar files
 *.tar

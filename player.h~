@@ -23,7 +23,6 @@ class Player : public Actor
   public:
     // Animate() helper function, when called will give the 
     // current frame so it can be blit.
-    
 };
 
 #endif

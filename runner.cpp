@@ -218,6 +218,8 @@ class Bullet
 
 class Actor
 {
+  private:
+    SDL_Surface *m_hit;
   public:
     int m_x;
     int m_y;
@@ -232,6 +234,14 @@ class Actor
     int m_state_flag;
     int m_current_x;
     int m_current_y;
+    void set_image_hit(SDL_Surface *surface)
+    {
+      m_hit = surface;
+    }
+    SDL_Surface *get_image_hit()
+    {
+      return m_hit;
+    }
     
     Actor(int x, int y, int w, int h, int frame, int max_frame, std::string sound, int hp, int score, Character_State state, int flag, int current_x, int current_y)
     {
@@ -267,7 +277,7 @@ void init_img()
     SDL_BlitSurface(background, &src, screen, &dest);
   
   // Draw the main character
-  printf("The current_frame: %i\n", m_char.m_current_frame);
+  //printf("The current_frame: %i\n", m_char.m_current_frame);
   // calculate the movement
   if (m_char.m_state == JUMPING)
   {
@@ -318,6 +328,62 @@ void init_img()
       m_char.m_state = RUNNING;
     }
   }
+  
+  // check if player was hit
+  if (m_char.m_state == HIT)
+  {
+    //printf("In hit action state\n");
+    if (m_char.m_current_frame == 0)
+    {
+      //printf("hit action state frame 0\n");
+      //std::cout << "Image_hit: " << m_char.get_image_hit() << std::endl;
+      // Calculate the src rectangle
+      src.x = 0;
+      src.y = 0;
+      src.w = 20;
+      src.h = 20;
+      dest.x = m_char.m_current_x;
+      dest.y = m_char.m_current_y;
+      dest.w = 20;
+      dest.h = 20;
+      assert(m_char.get_image_hit() != NULL);
+      SDL_BlitSurface(m_char.get_image_hit(), &src, screen, &dest);
+      m_char.m_current_frame += 1;
+    }
+    else if (m_char.m_current_frame == 1)
+    {
+      src.x = (m_char.m_current_frame + 1) * 20;
+      src.y = 0;
+      src.w = 20;
+      src.h = 20;
+      dest.x = m_char.m_current_x;
+      dest.y = m_char.m_current_y;
+      dest.w = 20;
+      dest.h = 20;
+      assert(m_char.get_image_hit() != NULL);
+      SDL_BlitSurface(m_char.get_image_hit(), &src, screen, &dest);
+      //m_char.m_current_frame += 1;
+    }
+    else if (m_char.m_current_frame == 2)
+    {
+      src.x = (m_char.m_current_frame + 1) * 20;
+      src.y = 0;
+      src.w = 20;
+      src.h = 20;
+      dest.x = m_char.m_current_x;
+      dest.y = m_char.m_current_y;
+      dest.w = 20;
+      dest.h = 20;
+      assert(m_char.get_image_hit() != NULL);
+      SDL_BlitSurface(m_char.get_image_hit(), &src, screen, &dest);
+      //m_char.m_current_frame += 1;
+    }
+    else
+    {
+      m_char.m_current_frame = 0;
+    }
+  }
+  
   // check the frame.
   if (m_char.m_current_frame == 0)
   {
@@ -361,6 +427,13 @@ void CheckForInput()
     {
       case SDL_KEYDOWN:
         keysym = event.key.keysym;
+        
+        if (keysym.sym == SDLK_h)
+        {
+          printf("The 'h' key was pressed.\n");
+          m_char.m_state = HIT;
+          m_char.m_current_frame = 0;
+        } 
         
         if (keysym.sym == SDLK_a)
         {
@@ -502,9 +575,13 @@ int main()
   // Load me the bullet.
   bullet = Init_image("bullet.bmp");
   std::cout << "bullet: " << bullet << std::endl;
+  // load the m_char hit image
+  SDL_Surface *hit = Init_image("./image/hit.bmp");
+  std::cout << "hit: " << hit << std::endl;
+  m_char.set_image_hit(hit);
   
-  int blah;
-  std::cin >> blah;
+  //int blah;
+  //std::cin >> blah;
   
   // This is the main game loop.
   while (quit_flag == 0)
