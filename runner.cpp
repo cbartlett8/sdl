@@ -187,6 +187,14 @@ int quit_flag = 0;
 // our loaded sounds and their formats
 sound_t cannon, explosion;
 
+/*
+I need something to keep track of all actors that are on the screen
+at any given time. It is granted we will always have a m_char but
+I need to know about the other objects that are in the world.
+A list that all actors and enemies go into or are known to the list
+is a good solution.
+*/
+
 
 enum Character_State
 {
