@@ -180,6 +180,7 @@ SDL_Surface *mario2;
 SDL_Surface *screen;
 SDL_Surface *temp;
 SDL_Surface *bullet;
+SDL_Surface *h_hit;
 SDL_Rect src, dest;
 SDL_Event event;
 int quit_flag = 0;
@@ -332,8 +333,7 @@ void init_img()
   // check if player was hit
   if (m_char.m_state == HIT)
   {
-    //printf("In hit action state\n");
-    if (m_char.m_current_frame == 0)
+    if ((m_char.m_current_frame / 60) < 1)
     {
       //printf("hit action state frame 0\n");
       //std::cout << "Image_hit: " << m_char.get_image_hit() << std::endl;
@@ -348,11 +348,12 @@ void init_img()
       dest.h = 20;
       assert(m_char.get_image_hit() != NULL);
       SDL_BlitSurface(m_char.get_image_hit(), &src, screen, &dest);
+      //SDL_BlitSurface(h_hit, &src, screen, &dest);
       m_char.m_current_frame += 1;
     }
-    else if (m_char.m_current_frame == 1)
+    else if ((m_char.m_current_frame / 60) < 2)
     {
-      src.x = (m_char.m_current_frame + 1) * 20;
+      src.x = 20;
       src.y = 0;
       src.w = 20;
       src.h = 20;
@@ -362,11 +363,12 @@ void init_img()
       dest.h = 20;
       assert(m_char.get_image_hit() != NULL);
       SDL_BlitSurface(m_char.get_image_hit(), &src, screen, &dest);
-      //m_char.m_current_frame += 1;
+      //SDL_BlitSurface(h_hit, &src, screen, &dest);
+      m_char.m_current_frame += 1;
     }
-    else if (m_char.m_current_frame == 2)
+    else if ((m_char.m_current_frame / 60) < 3)
     {
-      src.x = (m_char.m_current_frame + 1) * 20;
+      src.x = 40;
       src.y = 0;
       src.w = 20;
       src.h = 20;
@@ -376,7 +378,8 @@ void init_img()
       dest.h = 20;
       assert(m_char.get_image_hit() != NULL);
       SDL_BlitSurface(m_char.get_image_hit(), &src, screen, &dest);
-      //m_char.m_current_frame += 1;
+      //SDL_BlitSurface(h_hit, &src, screen, &dest);
+      m_char.m_current_frame += 1;
     }
     else
     {
@@ -384,33 +387,37 @@ void init_img()
     }
   }
   
-  // check the frame.
-  if (m_char.m_current_frame == 0)
+  // running
+  if (m_char.m_state == RUNNING || m_char.m_state == JUMPING)
   {
-    src.x = m_char.m_x;
-    src.y = m_char.m_y;
-    src.w = mario->w;
-    src.h = mario->h;
-    dest.x = m_char.m_current_x;
-    dest.y = m_char.m_current_y;
-    dest.w = mario->w;
-    dest.h = mario->h;
+    if (m_char.m_current_frame == 0)
+    {
+      src.x = m_char.m_x;
+      src.y = m_char.m_y;
+      src.w = mario->w;
+      src.h = mario->h;
+      dest.x = m_char.m_current_x;
+      dest.y = m_char.m_current_y;
+      dest.w = mario->w;
+      dest.h = mario->h;
+      
+      SDL_BlitSurface(mario, &src, screen, &dest);
+      m_char.m_current_frame += 1;
+    }
+    else
+    {
+      src.x = m_char.m_x;
+      src.y = m_char.m_y;
+      src.w = mario2->w;
+      src.h = mario2->h;
+      dest.x = m_char.m_current_x;
+      dest.y = m_char.m_current_y;
+      dest.w = mario2->w;
+      dest.h = mario2->h;
+      SDL_BlitSurface(mario2, &src, screen, &dest);
+      m_char.m_current_frame = 0;
+    }
     
-    SDL_BlitSurface(mario, &src, screen, &dest);
-    m_char.m_current_frame += 1;
-  }
-  else
-  {
-    src.x = m_char.m_x;
-    src.y = m_char.m_y;
-    src.w = mario2->w;
-    src.h = mario2->h;
-    dest.x = m_char.m_current_x;
-    dest.y = m_char.m_current_y;
-    dest.w = mario2->w;
-    dest.h = mario2->h;
-    SDL_BlitSurface(mario2, &src, screen, &dest);
-    m_char.m_current_frame = 0;
   }
   SDL_Flip(screen);
 }
@@ -576,9 +583,11 @@ int main()
   bullet = Init_image("bullet.bmp");
   std::cout << "bullet: " << bullet << std::endl;
   // load the m_char hit image
-  SDL_Surface *hit = Init_image("./image/hit.bmp");
+  SDL_Surface *hit = Init_image("ttv.bmp");
   std::cout << "hit: " << hit << std::endl;
   m_char.set_image_hit(hit);
+  h_hit = Init_image("ttv.bmp");
+  
   
   //int blah;
   //std::cin >> blah;
