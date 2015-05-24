@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <string>
 #include <iostream>
+#include <list>
 
 // structure for loading sounds
 typedef struct sound_s
@@ -184,6 +185,8 @@ SDL_Surface *h_hit;
 SDL_Rect src, dest;
 SDL_Event event;
 int quit_flag = 0;
+
+
 // our loaded sounds and their formats
 sound_t cannon, explosion;
 
@@ -214,7 +217,9 @@ class Bullet
   int m_h;
   int m_current_x;
   int m_current_y;
-  Bullet(int x, int y, int w, int h, int cur_x, int cur_y)
+  int m_speed;
+  int m_size;
+  Bullet(int x, int y, int w, int h, int cur_x, int cur_y, int speed, int size)
   {
     m_x = x;
     m_y = y;
@@ -222,6 +227,8 @@ class Bullet
     m_h = h;
     m_current_x = cur_x;
     m_current_y = cur_y;
+    m_speed = speed;
+    m_size = size;
   }
 };
 
@@ -270,9 +277,12 @@ class Actor
     }
 };
 
+// Lists to deal with the variable amount of actors on screen.
+std::list<Bullet*> Bullets;
+std::list<Actor*> Actors;
 std::string set = "Hello";
 Actor m_char(0, 0, 32, 32, 0, 1, set, 30, 100, RUNNING, 0, 0, 100);
-Bullet m_bullet(0,0,5,5,0,0);
+Bullet m_bullet(0,0,5,5,0,0, 2, 0);
 
 void init_img()
 {
@@ -454,6 +464,10 @@ void CheckForInput()
         {
           printf("The 'a' key was pressed.\n");
           m_char.m_state = SHOOTING;
+          Bullet *temp = new Bullet(0,0,5,5,0,0, 2, 0);
+          temp->m_current_x = m_char.m_current_x;
+          temp->m_current_y = m_char.m_current_y;
+          Bullets.insert(Bullets.begin(), temp);
           m_bullet.m_current_x = m_char.m_current_x;
           m_bullet.m_current_y = m_char.m_current_y;
         }
