@@ -198,6 +198,16 @@ A list that all actors and enemies go into or are known to the list
 is a good solution.
 */
 
+#define FLOOR 100
+
+// Basically stolen from tysons game object. Just checks for 
+// overlaps between two rectangles/squares.
+static bool overlap(int ax1, int ay1, int ax2, int ay2,
+                    int bx1, int by1, int bx2, int by2
+                   )
+{
+  return !(ax2 < bx1 || ax1 > bx2 || ay1 > by2 || ay2 < by1);
+}
 
 enum Character_State
 {
@@ -205,7 +215,8 @@ enum Character_State
   JUMPING = 2,
   SHOOTING = 3,
   HIT = 4,
-  SLIDING = 5
+  SLIDING = 5,
+  JUMP_SHOOT = 6
 }; 
 
 class Bullet
@@ -229,6 +240,10 @@ class Bullet
     m_current_y = cur_y;
     m_speed = speed;
     m_size = size;
+  }
+  void Print()
+  {
+    std::cout << "Bullet vitals: x: " << m_current_x << " y: " << m_current_y << std::endl;
   }
 };
 
@@ -275,26 +290,124 @@ class Actor
       m_current_x = current_x;
       m_current_y = current_y;
     }
+    
+    bool touches(Bullet *bullet)
+    {
+      // true if the bounding boxes of this and obj overlap
+      return overlap(m_current_x, m_current_y, m_current_x + m_w, 
+        m_current_y + m_h, bullet->m_current_x, bullet->m_current_y, 
+        bullet->m_current_x + bullet->m_w, bullet->m_current_y + bullet->m_h);
+    }
 };
 
 // Lists to deal with the variable amount of actors on screen.
 std::list<Bullet*> Bullets;
+std::list<Bullet*>::iterator iter;
 std::list<Actor*> Actors;
+std::list<Actor*>::iterator it;
 std::string set = "Hello";
-Actor m_char(0, 0, 32, 32, 0, 1, set, 30, 100, RUNNING, 0, 0, 100);
-Bullet m_bullet(0,0,5,5,0,0, 2, 0);
+Actor m_char(0, 0, 20, 20, 0, 1, set, 30, 100, RUNNING, 0, 0, FLOOR);
+//Bullet m_bullet(0,0,5,5,0,0, 2, 0);
+
+/*
+Filename_Grab(int level) is a function that looks in the file 
+dictated by level 0 = beg, 1 = int, 2 = master and pulls out
+a file at random to give to Actor_Generate(FILENAME)
+*/
+
+/* 
+Actor_Generate(FILENAME) is a function that takes in a
+text file and uses the data in the file to add actor objects
+to the global actors list. 
+*/ 
+bool Actor_Generate()
+{
+  return true;
+}
 
 void init_img()
 {
   // Draw the background
-    src.x = 0;
-    src.y = 0;
-    src.w = background->w;
-    src.h = background->h;
-    dest = src;
+  src.x = 0;
+  src.y = 0;
+  src.w = background->w;
+  src.h = background->h;
+  dest = src;
     
-    SDL_BlitSurface(background, &src, screen, &dest);
-  
+  SDL_BlitSurface(background, &src, screen, &dest);
+    
+  // Draw bullets
+  // See if the bullets is empty?
+  if (Bullets.empty() != true)
+  {
+    // iterate through the list 
+    for (iter=Bullets.begin(); iter != Bullets.end(); iter++)
+    {
+      // update the bullet location
+      (*iter)->m_current_x += (*iter)->m_speed;
+      
+      src.x = (*iter)->m_x;
+      src.y = (*iter)->m_y;
+      src.w = (*iter)->m_w;
+      src.h = (*iter)->m_h;
+      dest.x = (*iter)->m_current_x;
+      dest.y = (*iter)->m_current_y;
+      dest.w = (*iter)->m_w;
+      dest.h = (*iter)->m_h;
+      
+      // draw the bullet to the screen
+      SDL_BlitSurface(bullet, &src, screen, &dest);
+      
+      // check if we have collision 
+      bool touch_check = m_char.touches(*iter);
+      
+      // delete the bullet if we go off the screen.
+      if ((*iter)->m_current_x > 500 || (*iter)->m_current_x < 0 || touch_check == true)
+      {
+        if (touch_check == true)
+        {
+          m_char.m_state = HIT;
+          (*iter)->Print();
+        }
+        delete *iter;
+        iter = Bullets.erase(iter);
+      }
+      
+      /*
+      // Check for collisions between the bullet and the m_char
+      if (m_char.touches(*iter) == true)
+      {
+        m_char.m_state = HIT;
+        (*iter)->Print();
+        delete *iter;
+        iter = Bullets.erase(iter);
+      } 
+      */
+    }
+  }
+    
+    
+  // Draw the main character jumping and shooting
+  if (m_char.m_state == JUMP_SHOOT)
+  {
+    if (m_char.m_current_y > 0 && m_char.m_state_flag == 0)
+    {
+      m_char.m_current_y -= 1;
+    }
+    if (m_char.m_current_y < 5)
+    {
+      m_char.m_state_flag = 1;
+    }
+    if (m_char.m_state_flag == 1)
+    {
+      m_char.m_current_y += 1;
+    }
+    if (m_char.m_current_y >= 100 && m_char.m_state_flag == 1)
+    {
+      m_char.m_state = RUNNING;
+      m_char.m_state_flag = 0;
+    }
+  }
   // Draw the main character
   //printf("The current_frame: %i\n", m_char.m_current_frame);
   // calculate the movement
@@ -322,7 +435,9 @@ void init_img()
   // check if the character fired a bullet.
   if (m_char.m_state == SHOOTING)
   {
+    
     // Play the animation of the character shooting the bullet.
+    /*
     // Spawn the bullet
     src.x = m_bullet.m_x;
     src.y = m_bullet.m_y;
@@ -346,6 +461,8 @@ void init_img()
       m_bullet.m_current_x = -10;
       m_char.m_state = RUNNING;
     }
+    */
+    m_char.m_state = RUNNING;
   }
   
   // check if player was hit
@@ -406,7 +523,7 @@ void init_img()
   }
   
   // running
-  if (m_char.m_state == RUNNING || m_char.m_state == JUMPING)
+  if (m_char.m_state == RUNNING || m_char.m_state == JUMPING || m_char.m_state == JUMP_SHOOT)
   {
     if (m_char.m_current_frame == 0)
     {
@@ -463,13 +580,20 @@ void CheckForInput()
         if (keysym.sym == SDLK_a)
         {
           printf("The 'a' key was pressed.\n");
-          m_char.m_state = SHOOTING;
-          Bullet *temp = new Bullet(0,0,5,5,0,0, 2, 0);
-          temp->m_current_x = m_char.m_current_x;
-          temp->m_current_y = m_char.m_current_y;
+          if (m_char.m_current_y == FLOOR)
+          {
+            m_char.m_state = SHOOTING;
+          }
+          else
+          {
+            m_char.m_state = JUMP_SHOOT;
+          }
+          Bullet *temp = new Bullet(0,0,5,5,
+          m_char.m_current_x + 30,
+          m_char.m_current_y, 2, 0);
+          //temp->m_current_x = m_char.m_current_x + 30;
+          //temp->m_current_y = m_char.m_current_y;
           Bullets.insert(Bullets.begin(), temp);
-          m_bullet.m_current_x = m_char.m_current_x;
-          m_bullet.m_current_y = m_char.m_current_y;
         }
         
         if (keysym.sym == SDLK_q)
@@ -482,6 +606,9 @@ void CheckForInput()
         {
           printf("'c' pressed so fire the cannon.\n");
           PlaySound(&cannon);
+          Bullet *temp = new Bullet(0, 0, 5,5, m_char.m_current_x + 400,
+            m_char.m_current_y, -2, 0);
+          Bullets.insert(Bullets.begin(), temp);
         }
         
         if (keysym.sym == SDLK_e)
