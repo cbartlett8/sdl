@@ -1,8 +1,16 @@
-1
+// This is a comment, type, x, y, w, h, max_frames, name, E for exit or completion. 
+2
 100
 111
 100
 050
+002
 platform.bmp
-EXIT
+100
+111
+100
+050
+001
+platform.bmp
+E
 

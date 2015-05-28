@@ -173,7 +173,7 @@ int PlaySound(sound_p sound)
   
   return 0;
 }
-
+// !------------------------------------------------------------------------------
 // This is just setting up the images that will be appearing in the game.
 SDL_Surface *background;
 SDL_Surface *mario;
@@ -361,7 +361,7 @@ void init_img()
       // check if we have collision 
       bool touch_check = m_char.touches(*iter);
       
-      // delete the bullet if we go off the screen.
+      // delete the bullet if we go off the screen or touch m_char.
       if ((*iter)->m_current_x > 500 || (*iter)->m_current_x < 0 || touch_check == true)
       {
         if (touch_check == true)
