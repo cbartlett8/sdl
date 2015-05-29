@@ -4,7 +4,10 @@
 #include <assert.h>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <list>
+
+SDL_Surface* Init_image(std::string name);
 
 // structure for loading sounds
 typedef struct sound_s
@@ -190,14 +193,6 @@ int quit_flag = 0;
 // our loaded sounds and their formats
 sound_t cannon, explosion;
 
-/*
-I need something to keep track of all actors that are on the screen
-at any given time. It is granted we will always have a m_char but
-I need to know about the other objects that are in the world.
-A list that all actors and enemies go into or are known to the list
-is a good solution.
-*/
-
 #define FLOOR 100
 
 // Basically stolen from tysons game object. Just checks for 
@@ -320,8 +315,254 @@ Actor_Generate(FILENAME) is a function that takes in a
 text file and uses the data in the file to add actor objects
 to the global actors list. 
 */ 
-bool Actor_Generate()
+int Convert(char c)
 {
+  std::cout << "Convert c got: " << c << std::endl;
+  switch(c)
+  {
+    case '0':
+      return 0;
+    case '1':
+      return 1;
+    case '2':
+      return 2;
+    case '3':
+      return 3;
+    case '4':
+      return 4;
+    case '5':
+      return 5;
+    case '6':
+      return 6;
+    case '7':
+      return 7;
+    case '8':
+      return 8;
+    case '9':
+      return 9;
+    default:
+      return -1;
+  }
+}
+
+struct Coords
+{
+  int m_x;
+  int m_y;
+  int m_w;
+  int m_h;
+  int m_max_frames;
+  
+  Coords(int x, int y, int w, int h, int max_frame)
+  {
+    m_x = x;
+    m_y = y;
+    m_w = w;
+    m_h = h;
+    m_max_frames = max_frame;
+  }
+  void print()
+  {
+    printf("x: %i y: %i w: %i h: %i m_f: %i\n", m_x, m_y, m_w, m_h, m_max_frames);
+  }
+};
+
+class Collectible
+{
+  public:
+  int type;   // 1 for heart, 2 for coin
+  int value;  // 1-100 it just depends on the type.
+  SDL_Surface *s_run;
+  Coords *c_run;
+  SDL_Surface *s_hit;
+  Coords *c_hit;
+  
+  int m_current_x;
+  int m_current_y;
+  
+  
+  void set_run(SDL_Surface *temp)
+  {
+    s_run = temp;
+  }
+  void set_hit(SDL_Surface *temp)
+  {
+    s_hit = temp;
+  }
+  void set_coords_run(int x, int y, int w, int h, int max_frame)
+  {
+    c_run = new Coords(x,y,w,h,max_frame);
+  }
+  void set_coords_hit(int x, int y, int w, int h, int max_frame)
+  {
+    c_hit = new Coords(x, y, w, h, max_frame);
+  }
+  void print()
+  {
+    std::cout << "Actor is holding: " << std::endl;
+    if (s_run != NULL)
+    {
+      std::cout << "run: " << std::endl;
+      c_run->print();
+    }
+    if (s_hit != NULL)
+    {
+      std::cout << " hit: " << std::endl;
+      c_hit->print();
+    }
+  }
+};
+
+bool Actor_Generate(std::string filename)
+{
+  // We grab the first character to dictate the type of class
+  std::ifstream ifs;
+  
+  ifs.open(filename.c_str());
+  
+  char c[256];
+  int ia = c[0] - '0';
+  int x = 0;
+  int y = 0;
+  int w = 0;
+  int h = 0;
+  int max_frames = 0;
+  
+  // Every line we are taking in is a description of what the
+  // object we want to display is.
+  while(ifs.getline(c, 256))
+  {
+    printf("Version: %i\n", ia);
+    switch (ia)
+    {
+      case 3:   // This is the level for the enemies. Probably just a script and stuff
+        printf("We have a three.\n");
+        break;
+        
+      case 2:  // This is the level for the coins and collectibles.
+      {  // Because I cannot find what the type is or be generic with
+        // it before the end of the switch I have to block all
+        // this off.
+        Collectible *temp = new Collectible();
+        
+        // Basically here just for hit animation.
+        ifs.getline(c, 256);
+        int x_1, x_2, x_3;
+
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        x = (x_1 * 100) + (x_2 * 10) + x_3;
+        printf("x: %i\n", x);
+        
+        ifs.getline(c, 256);
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        y = (x_1 * 100) + (x_2 * 10) + x_3;
+        printf("y: %i\n", y);
+        
+        ifs.getline(c, 256);
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        w = (x_1 * 100) + (x_2 * 10) + x_3;
+        printf("w: %i\n", w);
+        
+        ifs.getline(c, 256);
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        h = (x_1 * 100) + (x_2 * 10) + x_3;
+        printf("h: %i\n", h);
+        
+        ifs.getline(c, 256);
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        max_frames = (x_1 * 100) + (x_2 * 10) + x_3;
+        printf("max_frames: %i\n", max_frames);
+        
+        temp->set_coords_hit(x, y, w, h, max_frames);
+        
+        // surface is the file
+        ifs.getline(c, 256);
+        SDL_Surface *sur = Init_image(c);
+        assert(sur != NULL);
+        temp->set_hit(sur);
+        
+        temp->print();
+      }
+      /*
+      case 1:  // This is the level for like platforms.
+      {
+        Actor *temp = new Actor();
+        // So this level takes in: x, y, w, h, Surface_name
+        ifs.getline(c, 256);
+        int x_1, x_2, x_3;
+
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        x = (x_1 * 100) + (x_2 * 10) + x_3;
+        printf("x: %i\n", x);
+        
+        ifs.getline(c, 256);
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        y = (x_1 * 100) + (x_2 * 10) + x_3;
+        printf("y: %i\n", y);
+        
+        ifs.getline(c, 256);
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        w = (x_1 * 100) + (x_2 * 10) + x_3;
+        printf("w: %i\n", w);
+        
+        ifs.getline(c, 256);
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        h = (x_1 * 100) + (x_2 * 10) + x_3;
+        printf("h: %i\n", h);
+        
+        ifs.getline(c, 256);
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        max_frames = (x_1 * 100) + (x_2 * 10) + x_3;
+        printf("max_frames: %i\n", max_frames);
+        
+        temp->set_coords_run(x, y, w, h, max_frames);
+        
+        // surface is the file
+        ifs.getline(c, 256);
+        SDL_Surface *sur = Init_image(c);
+        temp->set_run(sur);
+        
+        temp->print();
+        
+        ifs.getline(c, 256);
+        char exit_statement = 'E';
+        printf("This is c: %s\n", c);
+        if (c[0] == exit_statement)
+        {
+          printf("We correctly identified the EXIT Statement\n");
+        }
+        //y = convert(c[])
+        break;
+      }
+      */
+      default:
+        printf("We don't have a zero.\n");
+    }
+    int b = ia * 5;
+    printf("b: %i\n", b);
+  }
+  
+  ifs.close();
   return true;
 }
 

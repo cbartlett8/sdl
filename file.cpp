@@ -118,7 +118,7 @@ int main()
   // object we want to display is.
   while(ifs.getline(c, 256))
   {
-    std::cout << c;
+    //std::cout << c;
     
     // We grab the first character to dictate the type of 
     // Actor we are making.
@@ -132,7 +132,7 @@ int main()
     printf("Version: %i\n", ia);
     switch (ia)
     {
-      case 3:   // This is the level for the enemies.
+      case 3:   // This is the level for the enemies. Probably just a script and stuff
         printf("We have a three.\n");
         break;
         
