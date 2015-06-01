@@ -1,16 +1,29 @@
-// This is a comment, type, x, y, w, h, max_frames, name, E for exit or completion. 
+// This is a comment, type, current_x, current_y, w, h, max_frames, image_name, E for exit or completion. 
 2
-100
-111
-100
+500
+040
+050
 050
 002
-platform.bmp
-100
-111
-100
+./image/mega_1.bmp
+500
+040
 050
-001
-platform.bmp
+050
+002
+./image/mega_1.bmp
+2
+550
+040
+050
+050
+002
+./image/mega_1.bmp
+550
+040
+050
+050
+002
+./image/mega_1.bmp
 E
 

@@ -194,6 +194,7 @@ int quit_flag = 0;
 sound_t cannon, explosion;
 
 #define FLOOR 100
+#define SPEED 30
 
 // Basically stolen from tysons game object. Just checks for 
 // overlaps between two rectangles/squares.
@@ -213,6 +214,28 @@ enum Character_State
   SLIDING = 5,
   JUMP_SHOOT = 6
 }; 
+
+struct Coords
+{
+  int m_x;
+  int m_y;
+  int m_w;
+  int m_h;
+  int m_max_frame;
+  
+  Coords(int x, int y, int w, int h, int max_frame)
+  {
+    m_x = x;
+    m_y = y;
+    m_w = w;
+    m_h = h;
+    m_max_frame = max_frame;
+  }
+  void print()
+  {
+    printf("x: %i y: %i w: %i h: %i m_f: %i\n", m_x, m_y, m_w, m_h, m_max_frame);
+  }
+};
 
 class Bullet
 {
@@ -246,6 +269,13 @@ class Actor
 {
   private:
     SDL_Surface *m_hit;
+    Coords *c_hit;
+    SDL_Surface *m_run;
+    Coords *c_run;
+    SDL_Surface *m_jump;
+    Coords *c_jump;
+    SDL_Surface *m_jump_shoot;
+    Coords *c_jump_shoot;
   public:
     int m_x;
     int m_y;
@@ -264,10 +294,58 @@ class Actor
     {
       m_hit = surface;
     }
+    void set_image_run(SDL_Surface *surface)
+    {
+      m_run = surface;
+    }
+    void set_image_jump(SDL_Surface *surface)
+    {
+      m_jump = surface;
+    }
+    void set_coords_hit(int x, int y, int w, int h, int max_frame)
+    {
+      c_hit = new Coords(x, y, w, h, max_frame);
+    }
+    void set_coords_run(int x, int y, int w, int h, int max_frame)
+    {
+      c_run = new Coords(x, y, w, h, max_frame);
+    }
+    void set_coords_jump(int x, int y, int w, int h, int max_frame)
+    {
+      c_jump = new Coords(x, y, w, h, max_frame);
+    }
     SDL_Surface *get_image_hit()
     {
       return m_hit;
     }
+    SDL_Surface *get_image_run()
+    {
+      return m_run;
+    }
+    SDL_Surface *get_image_jump()
+    {
+      return m_jump;
+    }
+    SDL_Surface *get_image_jump_shoot()
+    {
+      return m_jump_shoot;
+    }
+    Coords *get_hit_coords()
+    {
+      return c_hit;
+    }
+    Coords *get_run_coords()
+    {
+      return c_run;
+    }
+    Coords *get_jump_coords()
+    {
+      return c_jump;
+    }
+    Coords *get_jump_shoot_coords()
+    {
+      return c_jump_shoot;
+    } 
     
     Actor(int x, int y, int w, int h, int frame, int max_frame, std::string sound, int hp, int score, Character_State state, int flag, int current_x, int current_y)
     {
@@ -293,6 +371,15 @@ class Actor
         m_current_y + m_h, bullet->m_current_x, bullet->m_current_y, 
         bullet->m_current_x + bullet->m_w, bullet->m_current_y + bullet->m_h);
     }
+    /*
+    bool touches(Collectible *bullet)
+    {
+      // true if the bounding boxes of this and obj overlap
+      return overlap(m_current_x, m_current_y, m_current_x + m_w, 
+        m_current_y + m_h, bullet->m_current_x, bullet->m_current_y, 
+        bullet->m_current_x + bullet->m_w, bullet->m_current_y + bullet->m_h);
+    }
+    */
 };
 
 // Lists to deal with the variable amount of actors on screen.
@@ -345,28 +432,6 @@ int Convert(char c)
   }
 }
 
-struct Coords
-{
-  int m_x;
-  int m_y;
-  int m_w;
-  int m_h;
-  int m_max_frames;
-  
-  Coords(int x, int y, int w, int h, int max_frame)
-  {
-    m_x = x;
-    m_y = y;
-    m_w = w;
-    m_h = h;
-    m_max_frames = max_frame;
-  }
-  void print()
-  {
-    printf("x: %i y: %i w: %i h: %i m_f: %i\n", m_x, m_y, m_w, m_h, m_max_frames);
-  }
-};
-
 class Collectible
 {
   public:
@@ -376,6 +441,7 @@ class Collectible
   Coords *c_run;
   SDL_Surface *s_hit;
   Coords *c_hit;
+  Character_State m_state;
   
   int m_current_x;
   int m_current_y;
@@ -389,6 +455,14 @@ class Collectible
   {
     s_hit = temp;
   }
+  SDL_Surface *get_run()
+  {
+    return s_run;
+  }
+  SDL_Surface *get_hit()
+  {
+    return s_hit;
+  }
   void set_coords_run(int x, int y, int w, int h, int max_frame)
   {
     c_run = new Coords(x,y,w,h,max_frame);
@@ -397,9 +471,22 @@ class Collectible
   {
     c_hit = new Coords(x, y, w, h, max_frame);
   }
+  Coords *get_coords_run()
+  {
+    return c_run;
+  }
+  Coords *get_coords_hit()
+  {
+    return c_hit;
+  }
+  void set_state(Character_State temp)
+  {
+    m_state = temp;
+  }
   void print()
   {
-    std::cout << "Actor is holding: " << std::endl;
+    std::cout << "Collectible is holding: " << std::endl;
+    std::cout << "x: " << m_current_x << " y: " << m_current_y << std::endl;
     if (s_run != NULL)
     {
       std::cout << "run: " << std::endl;
@@ -412,6 +499,8 @@ class Collectible
     }
   }
 };
+std::list<Collectible*> Collectibles;
+std::list<Collectible*>::iterator col_iter;
 
 bool Actor_Generate(std::string filename)
 {
@@ -421,18 +510,25 @@ bool Actor_Generate(std::string filename)
   ifs.open(filename.c_str());
   
   char c[256];
-  int ia = c[0] - '0';
+  int ia = 0;
   int x = 0;
   int y = 0;
   int w = 0;
   int h = 0;
   int max_frames = 0;
+  int x_1, x_2, x_3;
   
   // Every line we are taking in is a description of what the
   // object we want to display is.
-  while(ifs.getline(c, 256))
+  while(ifs.getline(c, 256) && c[0] != 'E')
   {
+    Collectible *temp = new Collectible();
+    SDL_Surface *sur_hit;
+    SDL_Surface *sur_run;
+    
+    ia = c[0] - '0';
     printf("Version: %i\n", ia);
+    std::cout << c << std::endl;
     switch (ia)
     {
       case 3:   // This is the level for the enemies. Probably just a script and stuff
@@ -440,15 +536,10 @@ bool Actor_Generate(std::string filename)
         break;
         
       case 2:  // This is the level for the coins and collectibles.
-      {  // Because I cannot find what the type is or be generic with
-        // it before the end of the switch I have to block all
-        // this off.
-        Collectible *temp = new Collectible();
+        temp->set_state(RUNNING);
         
         // Basically here just for hit animation.
         ifs.getline(c, 256);
-        int x_1, x_2, x_3;
-
         x_1 = Convert(c[0]);
         x_2 = Convert(c[1]);
         x_3 = Convert(c[2]);
@@ -483,20 +574,23 @@ bool Actor_Generate(std::string filename)
         max_frames = (x_1 * 100) + (x_2 * 10) + x_3;
         printf("max_frames: %i\n", max_frames);
         
-        temp->set_coords_hit(x, y, w, h, max_frames);
+        temp->set_coords_hit(0, 0, w, h, max_frames);
+        // set x to m_current_x
+        temp->m_current_x = x;
+        // set y to m_current_y
+        temp->m_current_y = y;
         
         // surface is the file
         ifs.getline(c, 256);
-        SDL_Surface *sur = Init_image(c);
-        assert(sur != NULL);
-        temp->set_hit(sur);
+        sur_hit = Init_image(c);
+        assert(sur_hit != NULL);
+        temp->set_hit(sur_hit);
         
         temp->print();
-      }
-      /*
+      
       case 1:  // This is the level for like platforms.
-      {
-        Actor *temp = new Actor();
+      
+        //Actor *temp = new Actor();
         // So this level takes in: x, y, w, h, Surface_name
         ifs.getline(c, 256);
         int x_1, x_2, x_3;
@@ -535,37 +629,35 @@ bool Actor_Generate(std::string filename)
         max_frames = (x_1 * 100) + (x_2 * 10) + x_3;
         printf("max_frames: %i\n", max_frames);
         
-        temp->set_coords_run(x, y, w, h, max_frames);
+        temp->set_coords_run(0, 0, w, h, max_frames);
+        
+        // set m_current_x to x 
+        temp->m_current_x = x;
+        // set m_current_y to y
+        temp->m_current_y = y; 
         
         // surface is the file
         ifs.getline(c, 256);
-        SDL_Surface *sur = Init_image(c);
-        temp->set_run(sur);
+        sur_run = Init_image(c);
+        assert(sur_run != NULL);
+        temp->set_run(sur_run);
         
         temp->print();
-        
-        ifs.getline(c, 256);
-        char exit_statement = 'E';
-        printf("This is c: %s\n", c);
-        if (c[0] == exit_statement)
-        {
-          printf("We correctly identified the EXIT Statement\n");
-        }
-        //y = convert(c[])
+        Collectibles.insert(Collectibles.begin(), temp);
         break;
-      }
-      */
       default:
-        printf("We don't have a zero.\n");
+        printf("Unknown NUMBER ignoring.\n");
     }
-    int b = ia * 5;
-    printf("b: %i\n", b);
+    //int b = ia * 5;
+    //printf("b: %i\n", b);
   }
-  
+  printf("Exiting Actor_Generate()\n");
   ifs.close();
   return true;
 }
 
+
+// This is our main loop. 
 void init_img()
 {
   // Draw the background
@@ -576,6 +668,43 @@ void init_img()
   dest = src;
     
   SDL_BlitSurface(background, &src, screen, &dest);
+  
+  // Draw other actors / collectibles
+  if (Collectibles.empty() != true)
+  {
+    Coords *temp;
+    for (col_iter = Collectibles.begin(); col_iter != Collectibles.end(); col_iter++)
+    {
+      if ((*col_iter)->m_state == RUNNING)
+      {
+        (*col_iter)->m_current_x -= 1;
+        temp = (*col_iter)->get_coords_run();
+        src.x = temp->m_x;
+        src.y = temp->m_y;
+        src.w = temp->m_w;
+        src.h = temp->m_h;
+        dest.x = (*col_iter)->m_current_x;
+        dest.y = (*col_iter)->m_current_y;
+        dest.w = temp->m_w;
+        dest.h = temp->m_h;
+        SDL_BlitSurface((*col_iter)->get_run(), &src, screen, &dest);
+      }
+      else if ((*col_iter)->m_state == HIT)
+      {
+        // We don't run anymore and play the hit animation
+        // Then we delete the object.
+      }
+      
+      
+      if ((*col_iter)->m_current_x < -(temp->m_w))
+      {
+        // We erase the object.
+        printf("We are erasing the object\n");
+        delete *col_iter;
+        col_iter = Collectibles.erase(col_iter);
+      }
+    }
+  }
     
   // Draw bullets
   // See if the bullets is empty?
@@ -631,19 +760,22 @@ void init_img()
   // Draw the main character jumping and shooting
   if (m_char.m_state == JUMP_SHOOT)
   {
-    if (m_char.m_current_y > 0 && m_char.m_state_flag == 0)
+    if (m_char.m_current_y > 0 && m_char.m_state_flag == 0) // going up
     {
       m_char.m_current_y -= 1;
+      //printf("Going up?\n");
     }
-    if (m_char.m_current_y < 5)
+    if (m_char.m_current_y < 5) // near the top? Start going down...
     {
       m_char.m_state_flag = 1;
+      //std::cout << "GOing up?" << std::endl;
     }
-    if (m_char.m_state_flag == 1)
+    if (m_char.m_state_flag == 1) // going down
     {
       m_char.m_current_y += 1;
+      //std::cout << "GOing down" << std::endl;
     }
-    if (m_char.m_current_y >= 100 && m_char.m_state_flag == 1)
+    if (m_char.m_current_y >= FLOOR && m_char.m_state_flag == 1) // back at the bottom
     {
       m_char.m_state = RUNNING;
       m_char.m_state_flag = 0;
@@ -654,22 +786,99 @@ void init_img()
   // calculate the movement
   if (m_char.m_state == JUMPING)
   {
-    if (m_char.m_current_y > 0 && m_char.m_state_flag == 0)
+    Coords *jump_coords = m_char.get_jump_coords();
+    /*
+    if (m_char.m_current_frame < (jump_coords->m_max_frame * SPEED))
+    {
+      // Display the character
+      if (m_char.m_current_frame / SPEED < 1)
+      {
+        src.x = jump_coords->m_x;
+      }
+      else if (m_char.m_current_frame / SPEED < 2)
+      {
+        src.x = jump_coords->m_x + 64;
+      }
+      else if (m_char.m_current_frame / SPEED < 3)
+      {
+        src.x = jump_coords->m_x + 128;
+      }
+      else if (m_char.m_current_frame / SPEED < 4)
+      {
+        src.x = jump_coords->m_x + 192;
+      }
+      else if (m_char.m_current_frame / SPEED < 5)
+      {
+        src.x = jump_coords->m_x + 256;
+      }
+      else if (m_char.m_current_frame / SPEED < 6)
+      {
+        src.x = jump_coords->m_x + 320;
+      } 
+      //src.x = run_coords->m_x + (m_char.m_current_frame * 64);
+      src.y = jump_coords->m_y;
+      src.w = jump_coords->m_w;
+      src.h = jump_coords->m_h;
+      dest.x = m_char.m_current_x;
+      dest.y = m_char.m_current_y;
+      dest.w = m_char.get_image_jump()->w;
+      dest.h = m_char.get_image_jump()->h;
+      SDL_BlitSurface(m_char.get_image_jump(), &src, screen, &dest);
+      m_char.m_current_frame += 1;
+    }
+    else
+    {
+      m_char.m_current_frame = 0;
+    } 
+    */
+    if (m_char.m_current_y > 0 && m_char.m_state_flag == 0) // going up
     {
       m_char.m_current_y -= 1;
+      if (m_char.m_current_frame < 60)
+        src.x = jump_coords->m_x;
+      else if (m_char.m_current_frame < 60 * 2)
+        src.x = jump_coords->m_x + 64;
+      else if (m_char.m_current_frame < 60 * 3)
+        src.x = jump_coords->m_x + 128;
+      src.y = jump_coords->m_y;
+      src.w = jump_coords->m_w;
+      src.h = jump_coords->m_h;
+      dest.x = m_char.m_current_x;
+      dest.y = m_char.m_current_y;
+      dest.w = m_char.get_image_jump()->w;
+      dest.h = m_char.get_image_jump()->h;
+      SDL_BlitSurface(m_char.get_image_jump(), &src, screen, &dest);
+      m_char.m_current_frame += 1;
     }
-    if (m_char.m_current_y < 5)
+    if (m_char.m_current_y < 5) // near the top
     {
       m_char.m_state_flag = 1;
+      m_char.m_current_frame = 0;
     }
-    if (m_char.m_state_flag == 1)
+    if (m_char.m_state_flag == 1) // going down
     {
       m_char.m_current_y += 1;
+      if (m_char.m_current_frame < 60)
+        src.x = jump_coords->m_x + 192;
+      else if (m_char.m_current_frame < 60 * 2)
+        src.x = jump_coords->m_x + 256;
+      else if (m_char.m_current_frame < 60 * 3)
+        src.x = jump_coords->m_x + 320;
+      src.y = jump_coords->m_y;
+      src.w = jump_coords->m_w;
+      src.h = jump_coords->m_h;
+      dest.x = m_char.m_current_x;
+      dest.y = m_char.m_current_y;
+      dest.w = m_char.get_image_jump()->w;
+      dest.h = m_char.get_image_jump()->h;
+      SDL_BlitSurface(m_char.get_image_jump(), &src, screen, &dest);
+      m_char.m_current_frame += 1;
     }
-    if (m_char.m_current_y >= 100 && m_char.m_state_flag == 1)
+    if (m_char.m_current_y >= FLOOR && m_char.m_state_flag == 1) // back on the ground.
     {
       m_char.m_state = RUNNING;
       m_char.m_state_flag = 0;
+      m_char.m_current_frame = 0;
     }
   }
   
@@ -764,8 +973,46 @@ void init_img()
   }
   
   // running
-  if (m_char.m_state == RUNNING || m_char.m_state == JUMPING || m_char.m_state == JUMP_SHOOT)
+  //if (m_char.m_state == RUNNING || m_char.m_state == JUMPING || m_char.m_state == JUMP_SHOOT)
+  if (m_char.m_state == RUNNING || m_char.m_state == JUMP_SHOOT)
   {
+    //m_char.m_current_frame = 128;
+    Coords *run_coords = m_char.get_run_coords();
+    if (m_char.m_current_frame < (run_coords->m_max_frame * SPEED))
+    {
+      // Display the character
+      if (m_char.m_current_frame / SPEED < 1)
+      {
+        src.x = run_coords->m_x;
+      }
+      else if (m_char.m_current_frame / SPEED < 2)
+      {
+        src.x = run_coords->m_x + 64;
+      }
+      else if (m_char.m_current_frame / SPEED < 3)
+      {
+        src.x = run_coords->m_x + 128;
+      }
+      else if (m_char.m_current_frame / SPEED < 4)
+      {
+        src.x = run_coords->m_x + 192;
+      }
+      //src.x = run_coords->m_x + (m_char.m_current_frame * 64);
+      src.y = run_coords->m_y;
+      src.w = run_coords->m_w;
+      src.h = run_coords->m_h;
+      dest.x = m_char.m_current_x;
+      dest.y = m_char.m_current_y;
+      dest.w = m_char.get_image_run()->w;
+      dest.h = m_char.get_image_run()->h;
+      SDL_BlitSurface(m_char.get_image_run(), &src, screen, &dest);
+      m_char.m_current_frame += 1;
+    }
+    else
+    {
+      m_char.m_current_frame = 0;
+    } 
+    /*
     if (m_char.m_current_frame == 0)
     {
       src.x = m_char.m_x;
@@ -793,6 +1040,7 @@ void init_img()
       SDL_BlitSurface(mario2, &src, screen, &dest);
       m_char.m_current_frame = 0;
     }
+    */
     
   }
   SDL_Flip(screen);
@@ -852,6 +1100,13 @@ void CheckForInput()
           Bullets.insert(Bullets.begin(), temp);
         }
         
+        if (keysym.sym == SDLK_x)
+        {
+          if (!Actor_Generate("./test.txt"))
+            printf("Actor_Generate messed up!!!!\n");
+          
+        }
+        
         if (keysym.sym == SDLK_e)
         {
           printf("'e' explosion!!!\n");
@@ -889,7 +1144,7 @@ SDL_Surface* Init_image(std::string name)
   }
   else
   {
-    printf("ERROR: Could not load: background.bmp\n");
+    std::cout << "ERROR: Could not load image: " << name << std::endl;
     return NULL;
   }
   SDL_FreeSurface(temp);
@@ -977,6 +1232,12 @@ int main()
   std::cout << "hit: " << hit << std::endl;
   m_char.set_image_hit(hit);
   h_hit = Init_image("ttv.bmp");
+  SDL_Surface *run = Init_image("./image/run.bmp");
+  m_char.set_image_run(run);
+  m_char.set_coords_run(0, 0, 64, 64, 4);
+  SDL_Surface *jump = Init_image("./image/jump.bmp");
+  m_char.set_image_jump(jump);
+  m_char.set_coords_jump(0,0,64,64,6);
   
   
   //int blah;
