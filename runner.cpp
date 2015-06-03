@@ -1,4 +1,6 @@
+// g++ -Wall -pedantic runner.cpp -lSDL -lSDL_ttf
 #include <SDL/SDL.h>
+#include <SDL/SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -80,7 +82,7 @@ void AudioCallback(void *user_data, Uint8 *audio, int length)
 // LoadAndConvertSound loads a sound with SDL_LoadWAV and converts
 // it to the specified sample format. Returns 0 on success and 1
 // on failure.
-int LoadAndConvertSound(char *filename, SDL_AudioSpec *spec, sound_p sound)
+int LoadAndConvertSound(char const *filename, SDL_AudioSpec *spec, sound_p sound)
 {
   SDL_AudioCVT cvt; // format conversion structure.
   SDL_AudioSpec loaded; // format of the loaded data.
@@ -187,7 +189,9 @@ SDL_Surface *bullet;
 SDL_Surface *h_hit;
 SDL_Rect src, dest;
 SDL_Event event;
+TTF_Font *gFont;
 int quit_flag = 0;
+
 
 
 // our loaded sounds and their formats
@@ -396,6 +400,48 @@ Filename_Grab(int level) is a function that looks in the file
 dictated by level 0 = beg, 1 = int, 2 = master and pulls out
 a file at random to give to Actor_Generate(FILENAME)
 */
+bool Filename_Grab(int level)
+{
+  std::ifstream ifs;
+  char c[255];
+  // Okay we are going to grab at random a text file.
+  switch (level)
+  {
+    case 1:  
+      ifs.open("random_list.txt");
+  
+      if (!ifs)
+      {
+        std::cerr << "Could not open file." << std::endl;
+        return false;
+      }
+      
+      // Okay we don't know how many lines we are going to have
+      // so we need to read in all the lines. Put those lines into
+      // a linked list and then randomly pick one of the lines
+      // from the linked list.
+      // v1 = rand() % 100 + 1   // v1 in the range of 1 to 100.
+      // std::list<char *> char_arrays;
+      // char_arrays.size() to get the size of the list.
+      // so v1 = rand() & size_of_list + 1;
+      // std::list<char*>::iterator it;
+      // int i = 0;
+      // for (it.char_arrays.begin(); i < v1; i++)
+      // it++;
+      // after that we should be at the correct place and we 
+      // dereference the iterator and grab the char array.
+      // cout << *it << endl;
+      ifs.getline(c, 255);
+      std::cout << c << std::endl;
+      
+      ifs.close();
+      break;
+    default:
+      printf("Filename_grab got passed a weird value.\n");
+      return false;
+  }
+  return true;
+}
 
 /* 
 Actor_Generate(FILENAME) is a function that takes in a
@@ -508,6 +554,12 @@ bool Actor_Generate(std::string filename)
   std::ifstream ifs;
   
   ifs.open(filename.c_str());
+  
+  if (!ifs)
+  {
+    std::cerr << "Could not open file: " << filename << std::endl;
+    return false;
+  }
   
   char c[256];
   int ia = 0;
@@ -1043,6 +1095,27 @@ void init_img()
     */
     
   }
+  
+  // Draw the HUD here as it has to be above everything else.
+  SDL_Color color;
+  color.r = 255;
+  color.g = 165;
+  color.b = 0;
+  SDL_Surface *HUD;
+  HUD = TTF_RenderText_Solid(gFont, "This is text", color);
+  if (HUD == NULL)
+  {
+    std::cerr << "Could not render text in main loop." << std::endl;
+  }
+  src.x = 0;
+  src.y = 0;
+  src.w = HUD->w;
+  src.h = HUD->h;
+  dest.x = 0;
+  dest.y = 0;
+  dest.w = HUD->w;
+  dest.h = HUD->h;
+  SDL_BlitSurface(HUD, &src, screen, &dest);
   SDL_Flip(screen);
 }
 
@@ -1107,6 +1180,14 @@ void CheckForInput()
           
         }
         
+        if (keysym.sym == SDLK_g)
+        {
+          if (Filename_Grab(1) == false)
+          {
+            printf("Something bad happened in filename_grab()\n");
+          }
+        } 
+        
         if (keysym.sym == SDLK_e)
         {
           printf("'e' explosion!!!\n");
@@ -1156,8 +1237,6 @@ int main()
   // audio format specifications
   SDL_AudioSpec desired, obtained;
   
-  
-  
   // Init SDL's video and audio subsystems. Have to have both.
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0)
   {
@@ -1171,13 +1250,35 @@ int main()
   // also need to call close audio before we exit.
   atexit(SDL_CloseAudio);
   
-  // attempt toset video mode.
+  // Set window manager name and icon.
+  SDL_Surface *icon = Init_image("./image/icon.bmp");  // needs to be 32x32pix
+  //Uint32 colorkey = SDL_MapRGB(icon->format, 255,0,255);
+  //SDL_SetColorKey(icon, SDL_SRCCOLORKEY, colorkey);
+  SDL_WM_SetIcon(icon, NULL);
+  SDL_WM_SetCaption("JellyRoll?", NULL);
+  
+  // attempt to set video mode.
   screen = SDL_SetVideoMode(640,480, 16, SDL_DOUBLEBUF);
   if (screen == NULL)
   {
     printf("Unable to set video mode: %s\n", SDL_GetError());
     return 1;
   }
+  
+  // load the font and error out of program if fail.
+  if (TTF_Init() < 0)
+  {
+    std::cerr << "ERROR: Could not initialize the ttf_font." << std::endl;
+    return 1;
+  }
+  gFont = TTF_OpenFont("./lazy.ttf", 10);
+  if (gFont == NULL)
+  {
+    std::cerr << "ERROR: Could not open font." << std::endl;
+    return 1;
+  }
+  
+  
   
   // open the audio device. Hopefully we can get the desired 
   // but obtained will have the actual values.
