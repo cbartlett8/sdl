@@ -1,4 +1,4 @@
-// g++ -Wall -pedantic runner.cpp -lSDL -lSDL_ttf
+// g++ -Wall -pedantic -std=c++11 runner.cpp -lSDL -lSDL_ttf
 #include <SDL/SDL.h>
 #include <SDL/SDL_ttf.h>
 #include <stdio.h>
@@ -8,6 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <list>
+#include <cmath>
 
 SDL_Surface* Init_image(std::string name);
 
@@ -192,8 +193,6 @@ SDL_Event event;
 TTF_Font *gFont;
 int quit_flag = 0;
 
-
-
 // our loaded sounds and their formats
 sound_t cannon, explosion;
 
@@ -218,6 +217,28 @@ enum Character_State
   SLIDING = 5,
   JUMP_SHOOT = 6
 }; 
+
+std::string Character_State_To_String(Character_State state)
+{
+  switch (state)
+  {
+    case RUNNING:
+      return "RUNNING";
+    case JUMPING:
+      return "JUMPING";
+    case SHOOTING:
+      return "SHOOTING";
+    case HIT:
+      return "HIT";
+    case SLIDING:
+      return "SLIDING";
+    case JUMP_SHOOT:
+      return "JUMP_SHOOT";
+    default:
+      return "";
+  }
+  
+}
 
 struct Coords
 {
@@ -266,6 +287,75 @@ class Bullet
   void Print()
   {
     std::cout << "Bullet vitals: x: " << m_current_x << " y: " << m_current_y << std::endl;
+  }
+};
+
+class Collectible
+{
+  public:
+  int type;   // 1 for heart, 2 for coin, 3 spike
+  int value;  // 1-100 it just depends on the type or neg for spikes.
+  int offset; // for collision_detection neg value usually expected.
+  SDL_Surface *s_run;
+  Coords *c_run;
+  SDL_Surface *s_hit;
+  Coords *c_hit;
+  Character_State m_state;
+  
+  int m_current_x;
+  int m_current_y;
+  
+  
+  void set_run(SDL_Surface *temp)
+  {
+    s_run = temp;
+  }
+  void set_hit(SDL_Surface *temp)
+  {
+    s_hit = temp;
+  }
+  SDL_Surface *get_run()
+  {
+    return s_run;
+  }
+  SDL_Surface *get_hit()
+  {
+    return s_hit;
+  }
+  void set_coords_run(int x, int y, int w, int h, int max_frame)
+  {
+    c_run = new Coords(x,y,w,h,max_frame);
+  }
+  void set_coords_hit(int x, int y, int w, int h, int max_frame)
+  {
+    c_hit = new Coords(x, y, w, h, max_frame);
+  }
+  Coords *get_coords_run()
+  {
+    return c_run;
+  }
+  Coords *get_coords_hit()
+  {
+    return c_hit;
+  }
+  void set_state(Character_State temp)
+  {
+    m_state = temp;
+  }
+  void print()
+  {
+    std::cout << "Collectible is holding: " << std::endl;
+    std::cout << "x: " << m_current_x << " y: " << m_current_y << std::endl;
+    if (s_run != NULL)
+    {
+      std::cout << "run: " << std::endl;
+      c_run->print();
+    }
+    if (s_hit != NULL)
+    {
+      std::cout << " hit: " << std::endl;
+      c_hit->print();
+    }
   }
 };
 
@@ -375,15 +465,47 @@ class Actor
         m_current_y + m_h, bullet->m_current_x, bullet->m_current_y, 
         bullet->m_current_x + bullet->m_w, bullet->m_current_y + bullet->m_h);
     }
-    /*
-    bool touches(Collectible *bullet)
+    bool touches(Collectible *coin, int mode)
     {
-      // true if the bounding boxes of this and obj overlap
-      return overlap(m_current_x, m_current_y, m_current_x + m_w, 
-        m_current_y + m_h, bullet->m_current_x, bullet->m_current_y, 
-        bullet->m_current_x + bullet->m_w, bullet->m_current_y + bullet->m_h);
+      // if mode == 1 then ModShop's circle define,
+      // if mode == 2 then tyson's rectangle define.
+      
+      switch(mode)
+      {
+        case 1:
+        {
+          // This works by drawing a line from m_char and obj and seeing if 
+          // the line is smaller than the radius of the m_char obj.
+          int dis = 0;
+          Coords *coin_coords = coin->get_coords_run();
+          dis = abs(pow(pow(m_current_x - coin_coords->m_x,2) + 
+            pow(m_current_y - coin_coords->m_y, 2), 2));
+          
+          // minus the radius of the objects.
+          dis -= (m_w / 2);
+          dis -= (coin_coords->m_w / 2);
+          if (dis < 100)
+            printf("ModShop check dis is: %i\n", dis);
+         
+          if (dis <= 0)
+            return true;
+          else
+            return false;
+        }
+        case 2:
+        {
+          Coords *cc = coin->get_coords_run();
+          return overlap(m_current_x, m_current_y, m_current_x + m_w, 
+          m_current_y + m_h, coin->m_current_x + coin->offset, 
+          coin->m_current_y + coin->offset, coin->m_current_x + cc->m_w, 
+          coin->m_current_y + cc->m_h);
+        }
+        default:
+        {
+          return false;
+        }
+      }
     }
-    */
 };
 
 // Lists to deal with the variable amount of actors on screen.
@@ -392,7 +514,7 @@ std::list<Bullet*>::iterator iter;
 std::list<Actor*> Actors;
 std::list<Actor*>::iterator it;
 std::string set = "Hello";
-Actor m_char(0, 0, 20, 20, 0, 1, set, 30, 100, RUNNING, 0, 0, FLOOR);
+Actor m_char(0, 0, 32, 32, 0, 1, set, 30, 100, RUNNING, 0, 0, FLOOR);
 //Bullet m_bullet(0,0,5,5,0,0, 2, 0);
 
 /*
@@ -400,15 +522,16 @@ Filename_Grab(int level) is a function that looks in the file
 dictated by level 0 = beg, 1 = int, 2 = master and pulls out
 a file at random to give to Actor_Generate(FILENAME)
 */
+bool Actor_Generate(std::string);
 bool Filename_Grab(int level)
 {
   std::ifstream ifs;
-  char c[255];
   // Okay we are going to grab at random a text file.
   switch (level)
   {
-    case 1:  
-      ifs.open("random_list.txt");
+    case 1: 
+    { 
+      ifs.open("./script/level1.txt");
   
       if (!ifs)
       {
@@ -416,26 +539,57 @@ bool Filename_Grab(int level)
         return false;
       }
       
-      // Okay we don't know how many lines we are going to have
-      // so we need to read in all the lines. Put those lines into
-      // a linked list and then randomly pick one of the lines
-      // from the linked list.
-      // v1 = rand() % 100 + 1   // v1 in the range of 1 to 100.
-      // std::list<char *> char_arrays;
-      // char_arrays.size() to get the size of the list.
-      // so v1 = rand() & size_of_list + 1;
-      // std::list<char*>::iterator it;
-      // int i = 0;
-      // for (it.char_arrays.begin(); i < v1; i++)
-      // it++;
-      // after that we should be at the correct place and we 
-      // dereference the iterator and grab the char array.
-      // cout << *it << endl;
-      ifs.getline(c, 255);
-      std::cout << c << std::endl;
+      // Create a linked list for the loop.
+      std::list<std::string> strings;
+      std::list<std::string>::iterator it;
+      
+      printf("Before the while loop.\n");
+      
+      // load in all the lines from the file.
+      while(ifs.good())
+      {
+        std::string s;
+        std::getline(ifs, s);
+        std::cout << s << std::endl;
+        strings.insert(strings.begin(), s);
+      }
+      
+      // We get the number of elements in the list::char_arrays
+      int size = strings.size();
+      printf("Filename_Grab: size: %i\n", size);
+      it = strings.begin();
+      // calculate the random based on the size.
+      int ran_dom = rand() % size + 1;
+      if (ran_dom > 1)
+      {
+        ran_dom -= 1;
+      }
+      
+      printf("Filename_Grab: ran_dom: %i\n", ran_dom);
+      for (int i = 0; i < ran_dom; i++)
+      {
+        std::cout << *it << std::endl;
+        it++;
+      }
+      
+      // We should now be at a place randomly so try to give the file
+      // to actor_generate.
+      std::cout << "The file we passing: " << *it << std::endl;
       
       ifs.close();
+      if (Actor_Generate(*it) == true)
+      {
+        printf("Filename_Grab ->Actor_Generate was successful.\n");
+      }
+      else
+      {
+        printf("Filename_Grab->Actor_Generate broke :(.\n");
+      }
+      
+      // erase the elements, strings should be destroyed at end.
+      strings.clear();
       break;
+    }
     default:
       printf("Filename_grab got passed a weird value.\n");
       return false;
@@ -478,73 +632,7 @@ int Convert(char c)
   }
 }
 
-class Collectible
-{
-  public:
-  int type;   // 1 for heart, 2 for coin
-  int value;  // 1-100 it just depends on the type.
-  SDL_Surface *s_run;
-  Coords *c_run;
-  SDL_Surface *s_hit;
-  Coords *c_hit;
-  Character_State m_state;
-  
-  int m_current_x;
-  int m_current_y;
-  
-  
-  void set_run(SDL_Surface *temp)
-  {
-    s_run = temp;
-  }
-  void set_hit(SDL_Surface *temp)
-  {
-    s_hit = temp;
-  }
-  SDL_Surface *get_run()
-  {
-    return s_run;
-  }
-  SDL_Surface *get_hit()
-  {
-    return s_hit;
-  }
-  void set_coords_run(int x, int y, int w, int h, int max_frame)
-  {
-    c_run = new Coords(x,y,w,h,max_frame);
-  }
-  void set_coords_hit(int x, int y, int w, int h, int max_frame)
-  {
-    c_hit = new Coords(x, y, w, h, max_frame);
-  }
-  Coords *get_coords_run()
-  {
-    return c_run;
-  }
-  Coords *get_coords_hit()
-  {
-    return c_hit;
-  }
-  void set_state(Character_State temp)
-  {
-    m_state = temp;
-  }
-  void print()
-  {
-    std::cout << "Collectible is holding: " << std::endl;
-    std::cout << "x: " << m_current_x << " y: " << m_current_y << std::endl;
-    if (s_run != NULL)
-    {
-      std::cout << "run: " << std::endl;
-      c_run->print();
-    }
-    if (s_hit != NULL)
-    {
-      std::cout << " hit: " << std::endl;
-      c_hit->print();
-    }
-  }
-};
+
 std::list<Collectible*> Collectibles;
 std::list<Collectible*>::iterator col_iter;
 
@@ -588,9 +676,44 @@ bool Actor_Generate(std::string filename)
         break;
         
       case 2:  // This is the level for the coins and collectibles.
+        // In order what we expect the txt file for colletibles to have.
+        // type, offset, defined type, value, x,y,w,h,max_frame,image then to case one.
         temp->set_state(RUNNING);
         
-        // Basically here just for hit animation.
+        // set the offset for collision detection. i.e how big of a 
+        // circle / rectangle are we going to do our detection with.
+        // circle for coin, rectangle for spike.
+        ifs.getline(c, 256);
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        x = (x_1 * 100) + (x_2 * 10) + x_3;
+        temp->offset = x;
+        
+        // type of the collectible 1 for heart, 2 for coin, 3 for spikes.
+        ifs.getline(c, 256);
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        x = (x_1 * 100) + (x_2 * 10) + x_3;
+        temp->type = x;
+        
+        // value of the collectible, heart positive, coin positive, spike neg
+        ifs.getline(c, 256);
+        x_1 = Convert(c[0]);
+        x_2 = Convert(c[1]);
+        x_3 = Convert(c[2]);
+        x = (x_1 * 100) + (x_2 * 10) + x_3;
+        if (temp->type == 3)
+        {
+          temp->value = -x;
+        }
+        else
+        {
+          temp->value = x;
+        }
+        
+        // Basically here just for hit animation, x, y, w, h, surface for hit animation
         ifs.getline(c, 256);
         x_1 = Convert(c[0]);
         x_2 = Convert(c[1]);
@@ -641,9 +764,7 @@ bool Actor_Generate(std::string filename)
         temp->print();
       
       case 1:  // This is the level for like platforms.
-      
-        //Actor *temp = new Actor();
-        // So this level takes in: x, y, w, h, Surface_name
+        // So this level takes in: x, y, w, h, Surface_name for the runner state.
         ifs.getline(c, 256);
         int x_1, x_2, x_3;
 
@@ -727,10 +848,23 @@ void init_img()
     Coords *temp;
     for (col_iter = Collectibles.begin(); col_iter != Collectibles.end(); col_iter++)
     {
+      // check for collision: 1 for radius, 2 for rectangle. 
+      bool touch_check = m_char.touches((*col_iter), 2);
+      if (touch_check == true && (*col_iter)->m_state != HIT)
+      {
+        (*col_iter)->m_state = HIT;
+        m_char.m_score += 10;
+        // Apply the value changes based on the type of the obj the m_char hit.
+      }
+      
       if ((*col_iter)->m_state == RUNNING)
       {
         (*col_iter)->m_current_x -= 1;
         temp = (*col_iter)->get_coords_run();
+        
+        // Setting transparency.
+        Uint32 colorkey = SDL_MapRGB((*col_iter)->get_run()->format, 255,0,255);
+        SDL_SetColorKey((*col_iter)->get_run(), SDL_SRCCOLORKEY, colorkey);
         src.x = temp->m_x;
         src.y = temp->m_y;
         src.w = temp->m_w;
@@ -892,6 +1026,10 @@ void init_img()
         src.x = jump_coords->m_x + 64;
       else if (m_char.m_current_frame < 60 * 3)
         src.x = jump_coords->m_x + 128;
+      
+      // Setting transparency.
+      Uint32 colorkey = SDL_MapRGB(m_char.get_image_jump()->format, 255,0,255);
+      SDL_SetColorKey(m_char.get_image_jump(), SDL_SRCCOLORKEY, colorkey);
       src.y = jump_coords->m_y;
       src.w = jump_coords->m_w;
       src.h = jump_coords->m_h;
@@ -916,6 +1054,10 @@ void init_img()
         src.x = jump_coords->m_x + 256;
       else if (m_char.m_current_frame < 60 * 3)
         src.x = jump_coords->m_x + 320;
+        
+      // Setting transparency.
+      Uint32 colorkey = SDL_MapRGB(m_char.get_image_jump()->format, 255,0,255);
+      SDL_SetColorKey(m_char.get_image_jump(), SDL_SRCCOLORKEY, colorkey);
       src.y = jump_coords->m_y;
       src.w = jump_coords->m_w;
       src.h = jump_coords->m_h;
@@ -1049,7 +1191,10 @@ void init_img()
       {
         src.x = run_coords->m_x + 192;
       }
-      //src.x = run_coords->m_x + (m_char.m_current_frame * 64);
+      // Setting transparency.
+      Uint32 colorkey = SDL_MapRGB(m_char.get_image_run()->format, 255,0,255);
+      SDL_SetColorKey(m_char.get_image_run(), SDL_SRCCOLORKEY, colorkey);
+      
       src.y = run_coords->m_y;
       src.w = run_coords->m_w;
       src.h = run_coords->m_h;
@@ -1063,37 +1208,7 @@ void init_img()
     else
     {
       m_char.m_current_frame = 0;
-    } 
-    /*
-    if (m_char.m_current_frame == 0)
-    {
-      src.x = m_char.m_x;
-      src.y = m_char.m_y;
-      src.w = mario->w;
-      src.h = mario->h;
-      dest.x = m_char.m_current_x;
-      dest.y = m_char.m_current_y;
-      dest.w = mario->w;
-      dest.h = mario->h;
-      
-      SDL_BlitSurface(mario, &src, screen, &dest);
-      m_char.m_current_frame += 1;
-    }
-    else
-    {
-      src.x = m_char.m_x;
-      src.y = m_char.m_y;
-      src.w = mario2->w;
-      src.h = mario2->h;
-      dest.x = m_char.m_current_x;
-      dest.y = m_char.m_current_y;
-      dest.w = mario2->w;
-      dest.h = mario2->h;
-      SDL_BlitSurface(mario2, &src, screen, &dest);
-      m_char.m_current_frame = 0;
-    }
-    */
-    
+    }     
   }
   
   // Draw the HUD here as it has to be above everything else.
@@ -1101,8 +1216,15 @@ void init_img()
   color.r = 255;
   color.g = 165;
   color.b = 0;
+  std::string HUD1 = "Mega HP: " + std::to_string(m_char.m_hp);
+  std::string HUD2 = "Mega Score: " + std::to_string(m_char.m_score);
+  std::string HUD3 = "Mega State: " + Character_State_To_String(m_char.m_state);
+  
+  char const *converted_HUD1 = HUD1.c_str();
+  char const *converted_HUD2 = HUD2.c_str();
+  char const *converted_HUD3 = HUD3.c_str();
   SDL_Surface *HUD;
-  HUD = TTF_RenderText_Solid(gFont, "This is text", color);
+  HUD = TTF_RenderText_Solid(gFont, converted_HUD1, color);
   if (HUD == NULL)
   {
     std::cerr << "Could not render text in main loop." << std::endl;
@@ -1113,6 +1235,22 @@ void init_img()
   src.h = HUD->h;
   dest.x = 0;
   dest.y = 0;
+  dest.w = HUD->w;
+  dest.h = HUD->h;
+  SDL_BlitSurface(HUD, &src, screen, &dest);
+  
+  HUD = TTF_RenderText_Solid(gFont, converted_HUD2, color);
+  src.h = HUD->h;
+  src.w = HUD->w;
+  dest.y = HUD->h;
+  dest.w = HUD->w;
+  dest.h = HUD->h;
+  SDL_BlitSurface(HUD, &src, screen, &dest);
+  
+  HUD = TTF_RenderText_Solid(gFont, converted_HUD3, color);
+  src.h = HUD->h;
+  src.w = HUD->w;
+  dest.y = HUD->h * 2;
   dest.w = HUD->w;
   dest.h = HUD->h;
   SDL_BlitSurface(HUD, &src, screen, &dest);
@@ -1150,9 +1288,10 @@ void CheckForInput()
           {
             m_char.m_state = JUMP_SHOOT;
           }
+          // generate the bullet.
           Bullet *temp = new Bullet(0,0,5,5,
-          m_char.m_current_x + 30,
-          m_char.m_current_y, 2, 0);
+          m_char.m_current_x + m_char.m_w + 10,
+          m_char.m_current_y + m_char.m_h / 2, 2, 0);
           //temp->m_current_x = m_char.m_current_x + 30;
           //temp->m_current_y = m_char.m_current_y;
           Bullets.insert(Bullets.begin(), temp);
@@ -1171,13 +1310,6 @@ void CheckForInput()
           Bullet *temp = new Bullet(0, 0, 5,5, m_char.m_current_x + 400,
             m_char.m_current_y, -2, 0);
           Bullets.insert(Bullets.begin(), temp);
-        }
-        
-        if (keysym.sym == SDLK_x)
-        {
-          if (!Actor_Generate("./test.txt"))
-            printf("Actor_Generate messed up!!!!\n");
-          
         }
         
         if (keysym.sym == SDLK_g)

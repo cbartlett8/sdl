@@ -1,0 +1,4 @@
+./script/coin1.txt
+./script/spike1.txt
+./script/coin2.txt
+./script/spike2.txt
