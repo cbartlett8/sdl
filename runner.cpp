@@ -290,6 +290,27 @@ class Bullet
   }
 };
 
+int Animate_frame(int max_frame, int current_frame, int size)
+{
+  // check if current frame is bigger then max_frame
+  if (current_frame > max_frame)
+  {
+    printf("ERROR 602: Improper size passed to Animate_frame.\n");
+    return 0;
+  }
+  if (current_frame == max_frame)
+  {
+    return 0;
+  }
+  
+  int x = 0;
+  for (int i = 0; i < current_frame; i++)
+  {
+    x = x + size; 
+  }
+  return x;
+}
+
 class Collectible
 {
   public:
@@ -301,6 +322,7 @@ class Collectible
   SDL_Surface *s_hit;
   Coords *c_hit;
   Character_State m_state;
+  int m_current_frame;
   
   int m_current_x;
   int m_current_y;
@@ -878,7 +900,23 @@ void init_img()
       else if ((*col_iter)->m_state == HIT)
       {
         // We don't run anymore and play the hit animation
-        // Then we delete the object.
+        (*col_iter)->m_current_x -= 1;
+        temp = (*col_iter)->get_coords_run();
+        
+        // Setting transparency.
+        Uint32 colorkey = SDL_MapRGB((*col_iter)->get_hit()->format, 255,0,255);
+        SDL_SetColorKey((*col_iter)->get_hit(), SDL_SRCCOLORKEY, colorkey);
+        // int animate = Animate_frame(temp->max_frames, temp->current_frame, size_of_x); it would be the offset we need instead of writing a bunch of 
+        // if else statemets;
+        src.x = temp->m_x;
+        src.y = temp->m_y;
+        src.w = temp->m_w;
+        src.h = temp->m_h;
+        dest.x = (*col_iter)->m_current_x;
+        dest.y = (*col_iter)->m_current_y;
+        dest.w = temp->m_w;
+        dest.h = temp->m_h;
+        SDL_BlitSurface((*col_iter)->get_hit(), &src, screen, &dest);
       }
       
       
@@ -1477,10 +1515,14 @@ int main()
   //std::cin >> blah;
   
   // This is the main game loop.
+  int gTime = 0;
   while (quit_flag == 0)
   {
     init_img();
     CheckForInput();
+    gTime++;
+    if (gTime % SPEED == 0)
+      printf("Second went by, Time: %i\n", gTime);
   }
   printf("Out of main while loop\n");
   

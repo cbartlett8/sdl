@@ -7,7 +7,7 @@
 032
 032
 001
-./image/coin2.bmp
+./image/coin_hit.bmp
 500
 040
 032

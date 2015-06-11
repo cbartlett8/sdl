@@ -6,8 +6,8 @@
 040
 032
 032
-001
-./image/coin2.bmp
+003
+./image/coin_hit.bmp
 500
 040
 032
@@ -22,8 +22,8 @@
 040
 032
 032
-001
-./image/coin2.bmp
+003
+./image/coin_hit.bmp
 532
 040
 032

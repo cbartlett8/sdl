@@ -8,7 +8,32 @@ class mario
     int a;
 };
 
+bool quit = false;
+int time = 0;
+
+/*
+Animate_frame is a function that will take in the start_time of a 
+frame of animation and the size of the image and if enough time 
+has passed, pass back the updated x coords.
+So we have a clock that is always ticking every time the loop runs.
+It should be 60 times a second.
+*/
+int Animate_frame(int start_time, int size)
+{
+  return 10;
+}
+
+void loop()
+{
+  time++;
+  if (time % 60 == 0)
+    printf("Time is now: %i\n", time);
+  
+
+}
+
 mario marios[50];
+
 
 int main()
 {
@@ -76,6 +101,11 @@ int main()
   
   // Update SDL that the screen has changed
   SDL_UpdateRect(screen, 0,0,0,0);
+  
+  while (quit != true)
+  {
+    loop();
+  }
   
   // pause a couple of seconds.
   SDL_Delay(1000);
